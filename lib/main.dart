@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_demos/numpad/pin_entry_form.dart';
 import 'package:flutter_demos/ui/button.dart';
+import 'package:flutter_demos/widget/production_log_form.dart';
 import 'theme/industrial_theme.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
@@ -32,6 +33,33 @@ class MyApp extends StatelessWidget {
 
 class IndustrialTerminal extends StatelessWidget {
   const IndustrialTerminal({super.key});
+
+  void _showProductionSummaryAlert(
+    BuildContext context,
+    String item,
+    int good,
+    int damaged,
+    int misprint,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('BATCH LOGGED'),
+        content: Text(
+          'Item: ${item.toUpperCase()}\n\n'
+          'Good: $good units\n'
+          'Damaged: $damaged units\n'
+          'Misprint: $misprint units',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ACKNOWLEDGE'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +108,23 @@ class IndustrialTerminal extends StatelessWidget {
                       onTap: () {},
                     ),
                   ],
+                ),
+                ProductionLogForm(
+                  availableItems: const [
+                    'Chassis Frame Type-A',
+                    'Hydraulic Valve Pivot 12mm',
+                    'Aluminum Bracket XL',
+                    'Copper Conduit Terminal',
+                  ],
+                  onSubmit: (String item, int good, int damaged, int misprint) {
+                    _showProductionSummaryAlert(
+                      context,
+                      item,
+                      good,
+                      damaged,
+                      misprint,
+                    );
+                  },
                 ),
               ],
             ),
