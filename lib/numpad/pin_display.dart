@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_demos/main.dart';
+import 'package:flutter_demos/theme/industrial_colors.dart';
 
 /// A pure-presentation, high-performance code display.
 ///

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_demos/main.dart';
 import 'package:flutter_demos/numpad/fast_button.dart';
+import 'package:flutter_demos/theme/industrial_colors.dart';
 
 /// A high-performance, raw industrial numpad that adapts directly to the ambient Theme.
 class FastNumpad extends StatelessWidget {
