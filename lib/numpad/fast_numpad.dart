@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_demos/main.dart';
+import 'package:flutter_demos/numpad/fast_button.dart';
 
 /// A high-performance, raw industrial numpad that adapts directly to the ambient Theme.
 class FastNumpad extends StatelessWidget {
@@ -107,6 +108,7 @@ class FastNumpad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final industrialColors = Theme.of(context).extension<IndustrialColors>()!;
 
     final totalWidth = (buttonWidth * 4) + (gridSpacing * 3);
     final totalHeight = (buttonHeight * 4) + (gridSpacing * 3);
@@ -115,12 +117,10 @@ class FastNumpad extends StatelessWidget {
     final resolvedActionTextStyle =
         actionTextStyle ?? theme.textTheme.labelLarge;
 
-    final baseColor =
-        backgroundColor ?? theme.colorScheme.surfaceContainerHighest;
+    final baseColor = backgroundColor ?? theme.colorScheme.secondary;
     final backspaceColor =
-        backspaceBackgroundColor ?? theme.colorScheme.errorContainer;
-    final clearColor =
-        clearBackgroundColor ?? theme.colorScheme.surfaceContainer;
+        backspaceBackgroundColor ?? theme.colorScheme.secondary;
+    final clearColor = clearBackgroundColor ?? industrialColors.warning;
     final cancelColor = cancelBackgroundColor ?? theme.colorScheme.error;
     final actionColor = actionBackgroundColor ?? theme.colorScheme.primary;
 
@@ -146,7 +146,7 @@ class FastNumpad extends StatelessWidget {
               backspaceIcon,
               size: backspaceSize,
               color: backspaceBackgroundColor == null
-                  ? theme.colorScheme.onErrorContainer
+                  ? theme.colorScheme.onSecondary
                   : null,
             ),
           ),
@@ -158,7 +158,12 @@ class FastNumpad extends StatelessWidget {
           _baseButton(
             color: clearColor,
             onTap: _inputClear,
-            child: Text("CLEAR", style: resolvedActionTextStyle),
+            child: Text(
+              "CLEAR",
+              style: resolvedActionTextStyle?.copyWith(
+                color: industrialColors.onWarning,
+              ),
+            ),
           ),
 
           // Row 3
@@ -231,7 +236,7 @@ class FastNumpad extends StatelessWidget {
     required Color color,
     bool isDisabled = false,
   }) {
-    return _NumpadButton(
+    return FastButton(
       color: color,
       onTap: onTap,
       enableHaptics: enableHaptics,
@@ -245,62 +250,6 @@ class FastNumpad extends StatelessWidget {
       color: color,
       onTap: () => _inputDigit(digit),
       child: Text('$digit', style: style),
-    );
-  }
-}
-
-class _NumpadButton extends StatefulWidget {
-  const _NumpadButton({
-    required this.child,
-    required this.onTap,
-    required this.color,
-    required this.enableHaptics,
-    this.isDisabled = false,
-  });
-
-  final Widget child;
-  final VoidCallback onTap;
-  final Color color;
-  final bool enableHaptics;
-  final bool isDisabled;
-
-  @override
-  State<_NumpadButton> createState() => _NumpadButtonState();
-}
-
-class _NumpadButtonState extends State<_NumpadButton> {
-  bool _isPressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    // If disabled, return a dead container with lowered opacity.
-    // By completely omitting the Listener, we guarantee zero misfires or haptics.
-    if (widget.isDisabled) {
-      return Container(
-        alignment: Alignment.center,
-        color: widget.color.withValues(alpha: 0.3),
-        child: Opacity(opacity: 0.5, child: widget.child),
-      );
-    }
-
-    final displayColor = _isPressed
-        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.18), widget.color)
-        : widget.color;
-
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (event) {
-        if (widget.enableHaptics) HapticFeedback.heavyImpact();
-        setState(() => _isPressed = true);
-        widget.onTap();
-      },
-      onPointerUp: (event) => setState(() => _isPressed = false),
-      onPointerCancel: (event) => setState(() => _isPressed = false),
-      child: Container(
-        alignment: Alignment.center,
-        color: displayColor,
-        child: widget.child,
-      ),
     );
   }
 }

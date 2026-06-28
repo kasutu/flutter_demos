@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_demos/main.dart';
 
 /// A pure-presentation, high-performance code display.
 ///
@@ -41,16 +42,11 @@ class PinDisplayState extends State<PinDisplay>
     );
 
     widget.errorNotifier.addListener(_onErrorTriggered);
-
-    if (widget.errorNotifier.value) {
-      _shakeController.forward(from: 0.0);
-    }
+    if (widget.errorNotifier.value) _shakeController.forward(from: 0.0);
   }
 
   void _onErrorTriggered() {
-    if (widget.errorNotifier.value) {
-      _shakeController.forward(from: 0.0);
-    }
+    if (widget.errorNotifier.value) _shakeController.forward(from: 0.0);
   }
 
   @override
@@ -62,25 +58,6 @@ class PinDisplayState extends State<PinDisplay>
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    final errorColor = scheme.error;
-    final primaryColor = scheme.primary;
-    final outlineColor = scheme.outlineVariant;
-    final onSurfaceColor = scheme.onSurface;
-
-    final normalStyle = TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.bold,
-      color: onSurfaceColor,
-    );
-
-    final errorStyle = TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.bold,
-      color: errorColor,
-    );
-
     final cellMargin = EdgeInsets.symmetric(horizontal: widget.cellGap / 2);
 
     return AnimatedBuilder(
@@ -90,32 +67,48 @@ class PinDisplayState extends State<PinDisplay>
         _shakeController,
       ]),
       builder: (context, _) {
-        final text = widget.controller.text;
-        final len = text.length;
-        final isError = widget.errorNotifier.value;
-        final isFullyFilled = len == widget.requiredLength;
+        final scheme = Theme.of(context).colorScheme;
+        final industrialColors = context.industrialColors;
 
-        // Calculate translation offset once per tick frame
+        final text = widget.controller.text;
+        final isError = widget.errorNotifier.value;
+        final isFullyFilled = text.length == widget.requiredLength;
+
+        final normalStyle = TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: scheme.onSurface,
+        );
+        final errorStyle = normalStyle.copyWith(color: scheme.error);
+
         final rawShakeOffset = sin(_shakeController.value * pi * 4) * 8.0;
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(widget.requiredLength, (index) {
-            final filled = index < len;
+            final isFilled = index < text.length;
+            final isFaulty = isError && (isFullyFilled || !isFilled);
 
-            // If code is fully filled but wrong -> everything shakes and turns red.
-            // If code is partially filled -> only empty boxes shake and turn red.
-            final cellIsFaulty = isError && (isFullyFilled || !filled);
+            Color borderColor;
+            double borderWidth;
+            TextStyle activeStyle;
 
-            final currentOffset = cellIsFaulty ? rawShakeOffset : 0.0;
-            final activeStyle = cellIsFaulty ? errorStyle : normalStyle;
-
-            final borderColor = cellIsFaulty
-                ? errorColor
-                : (filled ? primaryColor : outlineColor);
+            if (isFaulty) {
+              borderColor = scheme.error;
+              borderWidth = 2.0;
+              activeStyle = errorStyle;
+            } else if (isFilled) {
+              borderColor = scheme.primary;
+              borderWidth = 2.0;
+              activeStyle = normalStyle;
+            } else {
+              borderColor = scheme.outlineVariant;
+              borderWidth = 1.0;
+              activeStyle = normalStyle;
+            }
 
             return Transform.translate(
-              offset: Offset(currentOffset, 0),
+              offset: Offset(isFaulty ? rawShakeOffset : 0.0, 0),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 width: widget.cellSize,
@@ -123,13 +116,11 @@ class PinDisplayState extends State<PinDisplay>
                 margin: cellMargin,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: borderColor,
-                    width: cellIsFaulty ? 3.0 : 2.0,
-                  ),
+                  color: industrialColors.input,
+                  border: Border.all(color: borderColor, width: borderWidth),
                 ),
                 child: Text(
-                  filled ? (widget.obscureText ? '*' : text[index]) : '',
+                  isFilled ? (widget.obscureText ? '*' : text[index]) : '',
                   style: activeStyle,
                 ),
               ),

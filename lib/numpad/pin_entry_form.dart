@@ -77,7 +77,7 @@ class PinEntryFormState extends State<PinEntryForm> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
-      spacing: 24,
+      spacing: 64,
       children: [
         PinDisplay(controller: _controller, errorNotifier: _errorNotifier),
         FastNumpad(
