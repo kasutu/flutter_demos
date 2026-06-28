@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 ///
 /// Under error conditions, surgically isolates feedback (red border + shake)
 /// strictly to incomplete cells.
-class AccessCodeDisplay extends StatefulWidget {
-  const AccessCodeDisplay({
+class PinDisplay extends StatefulWidget {
+  const PinDisplay({
     super.key,
     required this.controller,
     required this.errorNotifier,
@@ -25,10 +25,10 @@ class AccessCodeDisplay extends StatefulWidget {
   final bool obscureText;
 
   @override
-  State<AccessCodeDisplay> createState() => _AccessCodeDisplayState();
+  State<PinDisplay> createState() => PinDisplayState();
 }
 
-class _AccessCodeDisplayState extends State<AccessCodeDisplay>
+class PinDisplayState extends State<PinDisplay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _shakeController;
 
@@ -74,6 +74,7 @@ class _AccessCodeDisplayState extends State<AccessCodeDisplay>
       fontWeight: FontWeight.bold,
       color: onSurfaceColor,
     );
+
     final errorStyle = TextStyle(
       fontSize: 28,
       fontWeight: FontWeight.bold,

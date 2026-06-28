@@ -4,7 +4,7 @@ import 'package:integration_test/integration_test.dart';
 
 // Adjust this import to match your project's actual package name
 import 'package:flutter_demos/main.dart';
-import 'package:flutter_demos/fast_numpad.dart';
+import 'package:flutter_demos/numpad/fast_numpad.dart';
 
 void main() {
   // Binds the test to the physical device UI

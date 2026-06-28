@@ -182,10 +182,9 @@ class FastNumpad extends StatelessWidget {
           ),
 
           // Row 4
-          const SizedBox.shrink(), // Left spacer
+          const SizedBox.shrink(),
           _padNumberButton(0, resolvedTextStyle, baseColor),
-          const SizedBox.shrink(), // Right spacer
-          // ⚡ Isolated Enter Button Builder
+          const SizedBox.shrink(),
           disableEnter == null
               ? _buildEnter(actionColor, resolvedActionTextStyle, theme, false)
               : ValueListenableBuilder<bool>(
@@ -274,7 +273,7 @@ class _NumpadButtonState extends State<_NumpadButton> {
 
   @override
   Widget build(BuildContext context) {
-    // ⚡ If disabled, return a dead container with lowered opacity.
+    // If disabled, return a dead container with lowered opacity.
     // By completely omitting the Listener, we guarantee zero misfires or haptics.
     if (widget.isDisabled) {
       return Container(

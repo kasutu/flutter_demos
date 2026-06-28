@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_demos/access_code_display.dart';
-import 'package:flutter_demos/fast_numpad.dart';
+import 'package:flutter_demos/numpad/pin_display.dart';
+import 'package:flutter_demos/numpad/fast_numpad.dart';
 
-class AccessCodeForm extends StatefulWidget {
-  const AccessCodeForm({
+class PinEntryForm extends StatefulWidget {
+  const PinEntryForm({
     super.key,
     this.codeLength = 6,
     required this.onSubmit,
@@ -17,13 +17,15 @@ class AccessCodeForm extends StatefulWidget {
   final bool Function(String code)? validator;
 
   @override
-  State<AccessCodeForm> createState() => _AccessCodeFormState();
+  State<PinEntryForm> createState() => PinEntryFormState();
 }
 
-class _AccessCodeFormState extends State<AccessCodeForm> {
+class PinEntryFormState extends State<PinEntryForm> {
   final TextEditingController _controller = TextEditingController();
   final ValueNotifier<bool> _errorNotifier = ValueNotifier(false);
-  int _prevLength = 0; // ← track length, not just "any change"
+
+  // track length, not just "any change"
+  int _prevLength = 0;
 
   @override
   void initState() {
@@ -41,6 +43,7 @@ class _AccessCodeFormState extends State<AccessCodeForm> {
 
   void _onControllerChanged() {
     final len = _controller.text.length;
+
     // Only clear the error when the user is actively typing new input.
     // Ignores length decreases so that FastNumpad's internal post-enter
     // clear doesn't race with and wipe the error before it renders.
@@ -53,10 +56,12 @@ class _AccessCodeFormState extends State<AccessCodeForm> {
   void _handleEnter() {
     final code = _controller.text;
     final isValid = widget.validator?.call(code) ?? true;
+
     if (!isValid) {
       _errorNotifier.value = true;
       return;
     }
+
     widget.onSubmit(code);
     _controller.clear();
   }
@@ -74,10 +79,7 @@ class _AccessCodeFormState extends State<AccessCodeForm> {
       crossAxisAlignment: CrossAxisAlignment.center,
       spacing: 24,
       children: [
-        AccessCodeDisplay(
-          controller: _controller,
-          errorNotifier: _errorNotifier,
-        ),
+        PinDisplay(controller: _controller, errorNotifier: _errorNotifier),
         FastNumpad(
           enableHaptics: true,
           controller: _controller,
