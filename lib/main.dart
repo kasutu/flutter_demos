@@ -173,7 +173,7 @@ class IndustrialTerminal extends StatelessWidget {
                   onCancel: () => debugPrint('Transaction cancelled.'),
                 ),
 
-                Row(
+                Column(
                   spacing: 16, // Requires Flutter 3.22+
                   children: [
                     // 1. "HUG" (Default) - Safely wraps its text with the standard 42px padding.

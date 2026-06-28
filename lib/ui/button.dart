@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 enum _Variant { primary, secondary, outline, ghost }
 
@@ -112,8 +113,6 @@ class GhostButton extends StatelessWidget {
   );
 }
 
-// --- INTERNAL ENGINE ---
-
 class _CoreButton extends StatelessWidget {
   final String title;
   final IconData? icon;
@@ -131,55 +130,85 @@ class _CoreButton extends StatelessWidget {
     this.width,
   });
 
+  void _triggerIndustrialHaptic() {
+    HapticFeedback.vibrate();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bool enabled = onTap != null;
 
-    // 1. Tablet-Optimized Base Styling
+    final VoidCallback? wrappedOnTap = enabled
+        ? () {
+            _triggerIndustrialHaptic();
+            onTap!();
+          }
+        : null;
+
+    // 1. Shadcn-Optimized Base Transition Tuning
     final baseStyle = ButtonStyle(
-      animationDuration: const Duration(milliseconds: 50),
-      overlayColor: WidgetStateProperty.all(
-        theme.colorScheme.onSurface.withValues(alpha: 0.1),
-      ),
+      // Replicates Tailwind's 'transition-all duration-150' interpolation curve
+      animationDuration: const Duration(milliseconds: 150),
+      // Uses a very soft overlay highlight instead of an aggressive material ripple
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) {
+          return theme.colorScheme.onSurface.withValues(alpha: 0.04);
+        }
+        return Colors.transparent;
+      }),
       shape: WidgetStateProperty.all(
         const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       ),
-      // Wider padding for tablet layouts
       padding: WidgetStateProperty.all(
         const EdgeInsets.symmetric(horizontal: 32),
       ),
     );
 
-    // 2. Foreground Color Logic
+    // 2. Foreground State Resolver (Mimics Tailwind text token modifications)
     Color resolveFg(Set<WidgetState> states) {
       if (states.contains(WidgetState.disabled)) {
         return theme.colorScheme.onSurface.withValues(alpha: 0.38);
       }
+
       switch (variant) {
         case _Variant.primary:
-          return theme.colorScheme.onPrimary;
+          return theme.colorScheme.onPrimary; // text-primary-foreground
         case _Variant.secondary:
-          return theme.colorScheme.onSecondary;
-        default:
+          return theme.colorScheme.onSecondary; // text-secondary-foreground
+        case _Variant.outline:
+        case _Variant.ghost:
+          if (states.contains(WidgetState.pressed)) {
+            return theme.colorScheme.onSecondary; // text-accent-foreground
+          }
           return theme.colorScheme.onSurface;
       }
     }
 
-    // 3. Build Button Node
+    // 3. Native Button Compilation Layer
     Widget buttonNode;
     switch (variant) {
       case _Variant.primary:
       case _Variant.secondary:
         buttonNode = FilledButton(
-          onPressed: onTap,
+          onPressed: wrappedOnTap,
           style: baseStyle.copyWith(
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.disabled)) {
                 return theme.colorScheme.onSurface.withValues(alpha: 0.12);
               }
-              return variant == _Variant.primary
+
+              final baseBg = variant == _Variant.primary
                   ? theme.colorScheme.primary
                   : theme.colorScheme.secondary;
+
+              // Replicates 'hover:bg-primary/90' and 'hover:bg-secondary/80' alpha blending
+              if (states.contains(WidgetState.pressed)) {
+                return baseBg.withValues(
+                  alpha: variant == _Variant.primary ? 0.50 : 0.40,
+                );
+              }
+              return baseBg;
             }),
             foregroundColor: WidgetStateProperty.resolveWith(resolveFg),
           ),
@@ -189,17 +218,28 @@ class _CoreButton extends StatelessWidget {
 
       case _Variant.outline:
         buttonNode = OutlinedButton(
-          onPressed: onTap,
+          onPressed: wrappedOnTap,
           style: baseStyle.copyWith(
+            // Replicates 'hover:bg-accent' by gracefully loading your secondary layout surface
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return theme.colorScheme.secondary;
+              }
+              return Colors.transparent;
+            }),
             foregroundColor: WidgetStateProperty.resolveWith(resolveFg),
-            side: WidgetStateProperty.resolveWith(
-              (states) => BorderSide(
-                color: states.contains(WidgetState.disabled)
-                    ? theme.colorScheme.onSurface.withValues(alpha: 0.12)
-                    : theme.colorScheme.outlineVariant,
-                width: 2.0, // Slightly thicker border for 56px height
-              ),
-            ),
+            side: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return BorderSide(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.12),
+                  width: 2.0,
+                );
+              }
+              return BorderSide(
+                color: theme.colorScheme.outlineVariant,
+                width: 2.0,
+              );
+            }),
           ),
           child: _buildContent(),
         );
@@ -207,9 +247,15 @@ class _CoreButton extends StatelessWidget {
 
       case _Variant.ghost:
         buttonNode = TextButton(
-          onPressed: onTap,
+          onPressed: wrappedOnTap,
           style: baseStyle.copyWith(
-            backgroundColor: WidgetStateProperty.all(Colors.transparent),
+            // Replicates 'hover:bg-accent' on empty backgrounds
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.pressed)) {
+                return theme.colorScheme.secondary;
+              }
+              return Colors.transparent;
+            }),
             foregroundColor: WidgetStateProperty.resolveWith(resolveFg),
           ),
           child: _buildContent(),
@@ -217,7 +263,6 @@ class _CoreButton extends StatelessWidget {
         break;
     }
 
-    // 4. Tablet Standard Sizing Constraint (Height: 56px)
     return SizedBox(
       height: 56.0,
       width: isFullWidth ? double.infinity : width,
@@ -225,12 +270,11 @@ class _CoreButton extends StatelessWidget {
     );
   }
 
-  // 5. Tablet Content Layout (18px text, 24px icons)
   Widget _buildContent() {
     final textWidget = Text(
       title.toUpperCase(),
       style: const TextStyle(
-        fontSize: 18.0, // Scaled up for tablet readability
+        fontSize: 18.0,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.5,
       ),
@@ -243,10 +287,8 @@ class _CoreButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 24.0), // Standard tablet icon scale
-          const SizedBox(
-            width: 12,
-          ), // Adjusted spacing for the larger font/icon
+          Icon(icon, size: 24.0),
+          const SizedBox(width: 12),
           Flexible(child: textWidget),
         ],
       );
