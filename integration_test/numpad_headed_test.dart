@@ -31,7 +31,7 @@ void main() {
       '050050', // Symmetrical zeros
     ];
 
-    const Duration delay = Duration(milliseconds: 100);
+    const Duration delay = Duration(milliseconds: 10);
 
     int totalExpectedLength = 0;
     int totalActualLength = 0;

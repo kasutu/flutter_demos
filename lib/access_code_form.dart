@@ -1,243 +1,92 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_demos/access_code_display.dart';
 import 'package:flutter_demos/fast_numpad.dart';
 
-/// A reusable 6-digit access code entry widget.
-///
-/// Composes the existing [FastNumpad] to avoid duplicating button logic.
-class AccessCodeEntry extends StatefulWidget {
-  const AccessCodeEntry({
+class AccessCodeForm extends StatefulWidget {
+  const AccessCodeForm({
     super.key,
-    required this.controller,
-    this.length = 6,
-    this.autoSubmit = true,
-    this.obscureText = true,
-    this.allowEmptySubmit = false,
-    this.title,
-    this.subtitle,
-    this.validator,
-    this.onSubmitted,
-    this.onError,
-    this.onClear,
+    this.codeLength = 6,
+    required this.onSubmit,
     this.onCancel,
-    this.shakeOnError = true,
-    this.errorFlashDuration = const Duration(milliseconds: 400),
-    this.buttonWidth = 72,
-    this.buttonHeight = 72,
-    this.gridSpacing = 1.0,
-    this.enableHaptics = true,
+    this.validator,
   });
 
-  final TextEditingController controller;
-  final int length;
-  final bool autoSubmit;
-  final bool obscureText;
-  final bool allowEmptySubmit;
-  final String? title;
-  final String? subtitle;
-  final String? Function(String code)? validator;
-  final ValueChanged<String>? onSubmitted;
-  final VoidCallback? onError;
-  final VoidCallback? onClear;
+  final int codeLength;
+  final void Function(String code) onSubmit;
   final VoidCallback? onCancel;
-  final bool shakeOnError;
-  final Duration errorFlashDuration;
-  final double buttonWidth;
-  final double buttonHeight;
-  final double gridSpacing;
-  final bool enableHaptics;
+  final bool Function(String code)? validator;
 
   @override
-  State<AccessCodeEntry> createState() => _AccessCodeEntryState();
+  State<AccessCodeForm> createState() => _AccessCodeFormState();
 }
 
-class _AccessCodeEntryState extends State<AccessCodeEntry>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _shakeController;
-  bool _isError = false;
+class _AccessCodeFormState extends State<AccessCodeForm> {
+  final TextEditingController _controller = TextEditingController();
+  final ValueNotifier<bool> _errorNotifier = ValueNotifier(false);
+  int _prevLength = 0; // ← track length, not just "any change"
 
   @override
   void initState() {
     super.initState();
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    widget.controller.addListener(_onTextChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant AccessCodeEntry oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller.removeListener(_onTextChanged);
-      widget.controller.addListener(_onTextChanged);
-    }
+    _controller.addListener(_onControllerChanged);
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onTextChanged);
-    _shakeController.dispose();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
+    _errorNotifier.dispose();
     super.dispose();
   }
 
-  void _onTextChanged() {
-    if (mounted) setState(() => _isError = false);
-
-    if (widget.controller.text.length == widget.length && widget.autoSubmit) {
-      Future.delayed(const Duration(milliseconds: 120), () {
-        if (mounted && widget.controller.text.length == widget.length) {
-          _submit();
-        }
-      });
+  void _onControllerChanged() {
+    final len = _controller.text.length;
+    // Only clear the error when the user is actively typing new input.
+    // Ignores length decreases so that FastNumpad's internal post-enter
+    // clear doesn't race with and wipe the error before it renders.
+    if (_errorNotifier.value && len > _prevLength) {
+      _errorNotifier.value = false;
     }
+    _prevLength = len;
   }
 
-  void _submit() {
-    final code = widget.controller.text;
-
-    if (!widget.allowEmptySubmit && code.isEmpty) {
-      _triggerError();
+  void _handleEnter() {
+    final code = _controller.text;
+    final isValid = widget.validator?.call(code) ?? true;
+    if (!isValid) {
+      _errorNotifier.value = true;
       return;
     }
-    if (code.length < widget.length) {
-      _triggerError();
-      return;
-    }
-
-    if (widget.validator != null) {
-      final err = widget.validator!(code);
-      if (err != null) {
-        _triggerError();
-        return;
-      }
-    }
-
-    widget.onSubmitted?.call(code);
+    widget.onSubmit(code);
+    _controller.clear();
   }
 
-  void _triggerError() {
-    widget.onError?.call();
-    setState(() => _isError = true);
-    if (widget.shakeOnError) _shakeController.forward(from: 0);
-    Future.delayed(widget.errorFlashDuration, () {
-      if (mounted) setState(() => _isError = false);
-    });
+  void _handleCancel() {
+    _controller.clear();
+    _errorNotifier.value = false;
+    widget.onCancel?.call();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _shakeController,
-      builder: (context, child) {
-        final shake = widget.shakeOnError
-            ? _shakeOffset(_shakeController.value)
-            : 0.0;
-        return Transform.translate(offset: Offset(shake, 0), child: child);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (widget.title != null) ...[
-            Text(
-              widget.title!,
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (widget.subtitle != null) ...[
-            Text(
-              widget.subtitle!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-          ],
-          _buildDisplay(),
-          const SizedBox(height: 32),
-          FastNumpad(
-            controller: widget.controller,
-            onEnterPressed: _submit,
-            onCancelPressed: () => widget.onCancel?.call(),
-            allowEmptySubmit: true, // We gate submission ourselves
-            enableHaptics: widget.enableHaptics,
-            buttonWidth: widget.buttonWidth,
-            buttonHeight: widget.buttonHeight,
-            gridSpacing: widget.gridSpacing,
-          ),
-        ],
-      ),
-    );
-  }
-
-  double _shakeOffset(double t) {
-    final decay = 1 - t;
-    return 10 * math.sin(t * math.pi * 6) * decay;
-  }
-
-  Widget _buildDisplay() {
-    final theme = Theme.of(context);
-    final errorColor = theme.colorScheme.error;
-    final activeColor = theme.colorScheme.primary;
-    final inactiveColor = theme.colorScheme.outlineVariant;
-    final code = widget.controller.text;
-
-    return Row(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(widget.length, (index) {
-        final hasDigit = index < code.length;
-        final digit = hasDigit ? code[index] : null;
-
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 48,
-          height: 56,
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: _isError
-                  ? errorColor
-                  : (hasDigit ? activeColor : inactiveColor),
-              width: hasDigit || _isError ? 2.2 : 1.5,
-            ),
-            borderRadius: BorderRadius.circular(10),
-            color: _isError
-                ? errorColor.withValues(alpha: 0.08)
-                : (hasDigit
-                      ? activeColor.withValues(alpha: 0.06)
-                      : theme.colorScheme.surface),
-          ),
-          alignment: Alignment.center,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 120),
-            child: hasDigit
-                ? Text(
-                    widget.obscureText ? '•' : digit!,
-                    key: ValueKey('d$index'),
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                      color: _isError
-                          ? errorColor
-                          : theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 28,
-                    ),
-                  )
-                : Text(
-                    '—',
-                    key: ValueKey('e$index'),
-                    style: TextStyle(
-                      color: inactiveColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-          ),
-        );
-      }),
+      crossAxisAlignment: CrossAxisAlignment.center,
+      spacing: 24,
+      children: [
+        AccessCodeDisplay(
+          controller: _controller,
+          errorNotifier: _errorNotifier,
+        ),
+        FastNumpad(
+          enableHaptics: true,
+          controller: _controller,
+          requiredCharacterLength: widget.codeLength,
+          onError: () => _errorNotifier.value = true,
+          onCancelPressed: _handleCancel,
+          onEnterPressed: _handleEnter,
+        ),
+      ],
     );
   }
 }

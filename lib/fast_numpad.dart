@@ -291,7 +291,7 @@ class _NumpadButtonState extends State<_NumpadButton> {
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (event) {
-        if (widget.enableHaptics) HapticFeedback.lightImpact();
+        if (widget.enableHaptics) HapticFeedback.heavyImpact();
         setState(() => _isPressed = true);
         widget.onTap();
       },
