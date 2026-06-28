@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// A high-performance, raw industrial numpad that adapts directly to the ambient Theme.
-class SimpleNumpad extends StatelessWidget {
-  const SimpleNumpad({
+class FastNumpad extends StatelessWidget {
+  const FastNumpad({
     super.key,
     this.buttonWidth = 92,
     this.buttonHeight = 92,
@@ -11,7 +11,7 @@ class SimpleNumpad extends StatelessWidget {
     required this.controller,
     required this.onEnterPressed,
     required this.onCancelPressed,
-    this.allowZeroSubmit = true,
+    this.allowEmptySubmit = false,
     this.onError,
     this.enableHaptics = true,
     this.backspaceIcon = Icons.backspace_outlined,
@@ -29,26 +29,16 @@ class SimpleNumpad extends StatelessWidget {
   final double buttonHeight;
   final double gridSpacing;
 
-  /// Numeric State Tracking
-  final ValueNotifier<int> controller;
+  final TextEditingController controller;
 
-  /// High-level Infrastructure Callbacks
   final VoidCallback onCancelPressed;
   final VoidCallback onEnterPressed;
-
-  /// When false, the ENTER button is disabled while [controller.value] == 0.
-  final bool allowZeroSubmit;
-
-  /// Called when an input validation error occurs (e.g., submitting 0 when
-  /// [allowZeroSubmit] is false). Use this to show a SnackBar, toast, etc.
+  final bool allowEmptySubmit;
   final VoidCallback? onError;
-
-  /// Global Configuration
   final bool enableHaptics;
   final IconData backspaceIcon;
   final double backspaceSize;
 
-  /// Theme Overrides
   final TextStyle? textStyle;
   final TextStyle? actionTextStyle;
   final Color? backgroundColor;
@@ -58,25 +48,40 @@ class SimpleNumpad extends StatelessWidget {
   final Color? actionBackgroundColor;
 
   void _inputDigit(int digit) {
-    final currentValue = controller.value;
-    controller.value = (currentValue * 10) + digit;
+    final currentValue = controller.text;
+    final newText = currentValue + digit.toString();
+
+    debugPrint('================ INPUT: $newText');
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
+    );
   }
 
   void _inputBackspace() {
-    final currentValue = controller.value;
-    if (currentValue == 0) return;
-    controller.value = (currentValue / 10).truncate();
+    final currentValue = controller.text;
+
+    if (currentValue.isEmpty) return;
+
+    final newText = currentValue.substring(0, currentValue.length - 1);
+
+    controller.value = TextEditingValue(
+      text: newText,
+      selection: TextSelection.collapsed(offset: newText.length),
+    );
   }
 
   void _inputClear() {
-    controller.value = 0;
+    controller.clear();
   }
 
   void _handleSubmit() {
-    if (!allowZeroSubmit && controller.value == 0) {
+    if (!allowEmptySubmit && controller.value.text.isEmpty) {
       onError?.call();
       return;
     }
+
     onEnterPressed();
     _inputClear();
   }
@@ -231,15 +236,17 @@ class _NumpadButtonState extends State<_NumpadButton> {
         ? Color.alphaBlend(Colors.black.withValues(alpha: 0.18), widget.color)
         : widget.color;
 
-    return GestureDetector(
+    return Listener(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
+      onPointerDown: (event) {
         if (widget.enableHaptics) HapticFeedback.lightImpact();
         setState(() => _isPressed = true);
+
+        // Fire instantly on touch down, skipping the gesture wait time
+        widget.onTap();
       },
-      onTapUp: (_) => setState(() => _isPressed = false),
-      onTapCancel: () => setState(() => _isPressed = false),
-      onTap: widget.onTap,
+      onPointerUp: (event) => setState(() => _isPressed = false),
+      onPointerCancel: (event) => setState(() => _isPressed = false),
       child: Container(
         alignment: Alignment.center,
         color: displayColor,
