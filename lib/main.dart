@@ -29,27 +29,43 @@ class NumpadDemo extends StatefulWidget {
 }
 
 class _NumpadDemoState extends State<NumpadDemo> {
-  // Single TextEditingController drives both display and numpad
+  final int _codeLength = 6;
+
+  // Single source of truth for the input
   final TextEditingController _controller = TextEditingController();
 
-  // Tracks whether the display is currently flashing red for an error
-  bool _isFlashingError = false;
+  final ValueNotifier<bool> _errorNotifier = ValueNotifier(false);
 
-  // Required length for the access code
-  final int _codeLength = 6;
+  @override
+  void initState() {
+    super.initState();
+
+    _controller.addListener(() {
+      if (_errorNotifier.value) {
+        _errorNotifier.value = false;
+      }
+    });
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _errorNotifier.dispose();
     super.dispose();
   }
 
-  /// Briefly flashes the background red to indicate a validation error.
-  void _flashError() {
-    setState(() => _isFlashingError = true);
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _isFlashingError = false);
-    });
+  void _handleEnter() {
+    final input = _controller.text;
+
+    if (input != '123456') {
+      debugPrint('Validation failed for: $input');
+      _errorNotifier.value = true;
+      return;
+    }
+
+    // Success Logic
+    debugPrint('Executed payload value: $input');
+    _controller.clear();
   }
 
   @override
@@ -57,40 +73,22 @@ class _NumpadDemoState extends State<NumpadDemo> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
+      spacing: 24,
       children: [
-        // Display Section
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          decoration: BoxDecoration(
-            color: _isFlashingError ? Colors.red.shade50 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: AccessCodeDisplay(
-            controller: _controller,
-            requiredLength: _codeLength,
-          ),
+        AccessCodeDisplay(
+          controller: _controller,
+          errorNotifier: _errorNotifier,
         ),
-
-        const SizedBox(height: 48),
-
-        // Pure Industrial Numpad
         FastNumpad(
           controller: _controller,
+          requiredCharacterLength: _codeLength,
+          onError: () => _errorNotifier.value = true,
           onCancelPressed: () {
             debugPrint('Transaction cancelled.');
             _controller.clear();
+            _errorNotifier.value = false;
           },
-          onEnterPressed: () {
-            debugPrint('Executed payload value: ${_controller.text}');
-            _controller.clear();
-          },
-          onError: () {
-            _flashError();
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Invalid input')));
-          },
+          onEnterPressed: _handleEnter,
         ),
       ],
     );

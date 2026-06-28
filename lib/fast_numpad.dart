@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -23,6 +24,8 @@ class FastNumpad extends StatelessWidget {
     this.clearBackgroundColor,
     this.cancelBackgroundColor,
     this.actionBackgroundColor,
+    this.requiredCharacterLength,
+    this.disableEnter,
   });
 
   final double buttonWidth;
@@ -47,11 +50,19 @@ class FastNumpad extends StatelessWidget {
   final Color? cancelBackgroundColor;
   final Color? actionBackgroundColor;
 
+  final int? requiredCharacterLength;
+  final ValueListenable<bool>? disableEnter;
+
   void _inputDigit(int digit) {
     final currentValue = controller.text;
-    final newText = currentValue + digit.toString();
 
-    debugPrint('================ INPUT: $newText');
+    // stop when complete
+    if (requiredCharacterLength != null &&
+        currentValue.length >= requiredCharacterLength!) {
+      return;
+    }
+
+    final newText = currentValue + digit.toString();
 
     controller.value = TextEditingValue(
       text: newText,
@@ -82,6 +93,13 @@ class FastNumpad extends StatelessWidget {
       return;
     }
 
+    // throw error when incomplete
+    if (requiredCharacterLength != null &&
+        controller.value.text.length < requiredCharacterLength!) {
+      onError?.call();
+      return;
+    }
+
     onEnterPressed();
     _inputClear();
   }
@@ -90,7 +108,6 @@ class FastNumpad extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Explicit 4x4 layout math boundaries
     final totalWidth = (buttonWidth * 4) + (gridSpacing * 3);
     final totalHeight = (buttonHeight * 4) + (gridSpacing * 3);
 
@@ -113,7 +130,7 @@ class FastNumpad extends StatelessWidget {
       child: GridView.count(
         padding: EdgeInsets.zero,
         physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 4, // Changed to 4 columns to fit everything inline
+        crossAxisCount: 4,
         crossAxisSpacing: gridSpacing,
         mainAxisSpacing: gridSpacing,
         childAspectRatio: buttonWidth / buttonHeight,
@@ -168,20 +185,43 @@ class FastNumpad extends StatelessWidget {
           const SizedBox.shrink(), // Left spacer
           _padNumberButton(0, resolvedTextStyle, baseColor),
           const SizedBox.shrink(), // Right spacer
-          _baseButton(
-            color: actionColor,
-            onTap: _handleSubmit,
-            child: Text(
-              "ENTER",
-              style: resolvedActionTextStyle?.copyWith(
-                color: actionBackgroundColor == null
-                    ? theme.colorScheme.onPrimary
-                    : null,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
+          // ⚡ Isolated Enter Button Builder
+          disableEnter == null
+              ? _buildEnter(actionColor, resolvedActionTextStyle, theme, false)
+              : ValueListenableBuilder<bool>(
+                  valueListenable: disableEnter!,
+                  builder: (context, isDisabled, _) {
+                    return _buildEnter(
+                      actionColor,
+                      resolvedActionTextStyle,
+                      theme,
+                      isDisabled,
+                    );
+                  },
+                ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEnter(
+    Color actionColor,
+    TextStyle? actionStyle,
+    ThemeData theme,
+    bool isDisabled,
+  ) {
+    return _baseButton(
+      color: actionColor,
+      onTap: _handleSubmit,
+      isDisabled: isDisabled,
+      child: Text(
+        "ENTER",
+        style: actionStyle?.copyWith(
+          color: actionBackgroundColor == null
+              ? theme.colorScheme.onPrimary
+              : null,
+        ),
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -190,12 +230,13 @@ class FastNumpad extends StatelessWidget {
     required Widget child,
     required VoidCallback onTap,
     required Color color,
+    bool isDisabled = false,
   }) {
-    // Forward params straight into the local performance button
     return _NumpadButton(
       color: color,
       onTap: onTap,
       enableHaptics: enableHaptics,
+      isDisabled: isDisabled,
       child: child,
     );
   }
@@ -215,12 +256,14 @@ class _NumpadButton extends StatefulWidget {
     required this.onTap,
     required this.color,
     required this.enableHaptics,
+    this.isDisabled = false,
   });
 
   final Widget child;
   final VoidCallback onTap;
   final Color color;
   final bool enableHaptics;
+  final bool isDisabled;
 
   @override
   State<_NumpadButton> createState() => _NumpadButtonState();
@@ -231,7 +274,16 @@ class _NumpadButtonState extends State<_NumpadButton> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX: Using the modern .withValues API instead of deprecated .withOpacity
+    // ⚡ If disabled, return a dead container with lowered opacity.
+    // By completely omitting the Listener, we guarantee zero misfires or haptics.
+    if (widget.isDisabled) {
+      return Container(
+        alignment: Alignment.center,
+        color: widget.color.withValues(alpha: 0.3),
+        child: Opacity(opacity: 0.5, child: widget.child),
+      );
+    }
+
     final displayColor = _isPressed
         ? Color.alphaBlend(Colors.black.withValues(alpha: 0.18), widget.color)
         : widget.color;
@@ -241,8 +293,6 @@ class _NumpadButtonState extends State<_NumpadButton> {
       onPointerDown: (event) {
         if (widget.enableHaptics) HapticFeedback.lightImpact();
         setState(() => _isPressed = true);
-
-        // Fire instantly on touch down, skipping the gesture wait time
         widget.onTap();
       },
       onPointerUp: (event) => setState(() => _isPressed = false),
