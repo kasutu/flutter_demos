@@ -68,7 +68,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeNotifier,
-      builder: (_, currentThemeMode, __) {
+      builder: (_, currentThemeMode, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           themeMode: currentThemeMode,
@@ -174,23 +174,29 @@ class IndustrialTerminal extends StatelessWidget {
                 ),
 
                 Row(
-                  spacing: 16,
+                  spacing: 16, // Requires Flutter 3.22+
                   children: [
-                    Button(
-                      title: 'Do something',
-                      onTap: () => debugPrint('something pressed'),
+                    // 1. "HUG" (Default) - Safely wraps its text with the standard 42px padding.
+                    PrimaryButton(title: 'Execute', onTap: () {}),
+
+                    // 2. "FILL" - Inside a Row, Expanded naturally fills available space!
+                    // (Note: Removed `flex: 0` as Expanded defaults to flex 1 to actually fill).
+                    Expanded(
+                      flex: 0,
+                      child: OutlineButton(title: 'Diagnostic', onTap: () {}),
                     ),
-                    Button(
-                      title: 'Execute',
-                      icon: Icons.play_arrow,
-                      onTap: () => debugPrint('Execute pressed'),
-                      accentColor: theme.colorScheme.primary,
-                    ),
-                    Button(
-                      title: 'Abort',
-                      icon: Icons.stop,
-                      onTap: () => debugPrint('Abort pressed'),
-                      accentColor: theme.colorScheme.error,
+
+                    // 3. "FIXED" - Locks to precise dimensions.
+                    // (Note: Width is fixed to 120, but height remains locked to your standard 42px).
+                    SecondaryButton(title: 'Stop', width: 120, onTap: () {}),
+
+                    // 4. "SCALED" - Adjusting inner visuals.
+                    // (Note: We removed the custom fontSize and iconSize properties in the
+                    // refactor to enforce your 24px/32px rule. It now renders at the standard size).
+                    GhostButton(
+                      title: 'Task',
+                      icon: Icons.search,
+                      onTap: () {},
                     ),
                   ],
                 ),

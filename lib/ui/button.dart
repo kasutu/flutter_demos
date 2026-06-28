@@ -1,114 +1,257 @@
 import 'package:flutter/material.dart';
 
-/// Industrial-styled flat action button.
-///
-/// Features sharp zero-radius corners, clear color-inversion on interaction,
-/// and an optional icon configuration.
-class Button extends StatefulWidget {
-  final String title;
-  final IconData? icon; // 1. Made IconData nullable
-  final VoidCallback? onTap;
-  final bool isIconOnly;
-  final Color? accentColor;
+enum _Variant { primary, secondary, outline, ghost }
 
-  const Button({
+// --- PUBLIC API ---
+
+class PrimaryButton extends StatelessWidget {
+  final String title;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool isFullWidth;
+  final double? width;
+
+  const PrimaryButton({
     super.key,
     required this.title,
-    this.icon, // 2. Removed the 'required' constraint
+    this.icon,
     this.onTap,
-    this.isIconOnly = false,
-    this.accentColor,
+    this.isFullWidth = false,
+    this.width,
   });
 
   @override
-  State<Button> createState() => _ButtonState();
+  Widget build(BuildContext context) => _CoreButton(
+    variant: _Variant.primary,
+    title: title,
+    icon: icon,
+    onTap: onTap,
+    isFullWidth: isFullWidth,
+    width: width,
+  );
 }
 
-class _ButtonState extends State<Button> {
-  bool _isPressed = false;
+class SecondaryButton extends StatelessWidget {
+  final String title;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool isFullWidth;
+  final double? width;
+
+  const SecondaryButton({
+    super.key,
+    required this.title,
+    this.icon,
+    this.onTap,
+    this.isFullWidth = false,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) => _CoreButton(
+    variant: _Variant.secondary,
+    title: title,
+    icon: icon,
+    onTap: onTap,
+    isFullWidth: isFullWidth,
+    width: width,
+  );
+}
+
+class OutlineButton extends StatelessWidget {
+  final String title;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool isFullWidth;
+  final double? width;
+
+  const OutlineButton({
+    super.key,
+    required this.title,
+    this.icon,
+    this.onTap,
+    this.isFullWidth = false,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) => _CoreButton(
+    variant: _Variant.outline,
+    title: title,
+    icon: icon,
+    onTap: onTap,
+    isFullWidth: isFullWidth,
+    width: width,
+  );
+}
+
+class GhostButton extends StatelessWidget {
+  final String title;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool isFullWidth;
+  final double? width;
+
+  const GhostButton({
+    super.key,
+    required this.title,
+    this.icon,
+    this.onTap,
+    this.isFullWidth = false,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) => _CoreButton(
+    variant: _Variant.ghost,
+    title: title,
+    icon: icon,
+    onTap: onTap,
+    isFullWidth: isFullWidth,
+    width: width,
+  );
+}
+
+// --- INTERNAL ENGINE ---
+
+class _CoreButton extends StatelessWidget {
+  final String title;
+  final IconData? icon;
+  final VoidCallback? onTap;
+  final bool isFullWidth;
+  final double? width;
+  final _Variant variant;
+
+  const _CoreButton({
+    required this.variant,
+    required this.title,
+    this.icon,
+    this.onTap,
+    this.isFullWidth = false,
+    this.width,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bool enabled = widget.onTap != null;
 
-    final Color accent = widget.accentColor ?? theme.colorScheme.primary;
-    final Color chassis = theme.colorScheme.surface;
+    // 1. Tablet-Optimized Base Styling
+    final baseStyle = ButtonStyle(
+      animationDuration: const Duration(milliseconds: 50),
+      overlayColor: WidgetStateProperty.all(
+        theme.colorScheme.onSurface.withValues(alpha: 0.1),
+      ),
+      shape: WidgetStateProperty.all(
+        const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      ),
+      // Wider padding for tablet layouts
+      padding: WidgetStateProperty.all(
+        const EdgeInsets.symmetric(horizontal: 32),
+      ),
+    );
 
-    final Color backgroundColor = enabled
-        ? (_isPressed ? accent : chassis)
-        : chassis;
+    // 2. Foreground Color Logic
+    Color resolveFg(Set<WidgetState> states) {
+      if (states.contains(WidgetState.disabled)) {
+        return theme.colorScheme.onSurface.withValues(alpha: 0.38);
+      }
+      switch (variant) {
+        case _Variant.primary:
+          return theme.colorScheme.onPrimary;
+        case _Variant.secondary:
+          return theme.colorScheme.onSecondary;
+        default:
+          return theme.colorScheme.onSurface;
+      }
+    }
 
-    final Color borderColor = enabled
-        ? accent
-        : theme.colorScheme.onSurface.withValues(alpha: 0.15);
+    // 3. Build Button Node
+    Widget buttonNode;
+    switch (variant) {
+      case _Variant.primary:
+      case _Variant.secondary:
+        buttonNode = FilledButton(
+          onPressed: onTap,
+          style: baseStyle.copyWith(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return theme.colorScheme.onSurface.withValues(alpha: 0.12);
+              }
+              return variant == _Variant.primary
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.secondary;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith(resolveFg),
+          ),
+          child: _buildContent(),
+        );
+        break;
 
-    final Color contentColor = enabled
-        ? (_isPressed
-              ? (widget.accentColor == null
-                    ? theme.colorScheme.onPrimary
-                    : chassis)
-              : accent)
-        : theme.colorScheme.onSurface.withValues(alpha: 0.38);
-
-    return RepaintBoundary(
-      child: Semantics(
-        button: true,
-        enabled: enabled,
-        label: widget.title,
-        child: MouseRegion(
-          cursor: enabled
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.forbidden,
-          child: GestureDetector(
-            onTapDown: enabled
-                ? (_) => setState(() => _isPressed = true)
-                : null,
-            onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-            onTapCancel: enabled
-                ? () => setState(() => _isPressed = false)
-                : null,
-            onTap: enabled ? widget.onTap : null,
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 50),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                border: Border.all(color: borderColor, width: 1.5),
-                borderRadius: BorderRadius.zero,
-              ),
-              padding: widget.isIconOnly
-                  ? const EdgeInsets.all(16)
-                  : const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 3. Conditionally render icon and structural gap spacing
-                  if (widget.icon != null) ...[
-                    Icon(
-                      widget.icon,
-                      size: widget.isIconOnly ? 24 : 20,
-                      color: contentColor,
-                    ),
-                    if (!widget.isIconOnly) const SizedBox(width: 12),
-                  ],
-                  if (!widget.isIconOnly)
-                    Text(
-                      widget.title.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.0,
-                        color: contentColor,
-                      ),
-                    ),
-                ],
+      case _Variant.outline:
+        buttonNode = OutlinedButton(
+          onPressed: onTap,
+          style: baseStyle.copyWith(
+            foregroundColor: WidgetStateProperty.resolveWith(resolveFg),
+            side: WidgetStateProperty.resolveWith(
+              (states) => BorderSide(
+                color: states.contains(WidgetState.disabled)
+                    ? theme.colorScheme.onSurface.withValues(alpha: 0.12)
+                    : theme.colorScheme.outlineVariant,
+                width: 2.0, // Slightly thicker border for 56px height
               ),
             ),
           ),
-        ),
-      ),
+          child: _buildContent(),
+        );
+        break;
+
+      case _Variant.ghost:
+        buttonNode = TextButton(
+          onPressed: onTap,
+          style: baseStyle.copyWith(
+            backgroundColor: WidgetStateProperty.all(Colors.transparent),
+            foregroundColor: WidgetStateProperty.resolveWith(resolveFg),
+          ),
+          child: _buildContent(),
+        );
+        break;
+    }
+
+    // 4. Tablet Standard Sizing Constraint (Height: 56px)
+    return SizedBox(
+      height: 56.0,
+      width: isFullWidth ? double.infinity : width,
+      child: buttonNode,
     );
+  }
+
+  // 5. Tablet Content Layout (18px text, 24px icons)
+  Widget _buildContent() {
+    final textWidget = Text(
+      title.toUpperCase(),
+      style: const TextStyle(
+        fontSize: 18.0, // Scaled up for tablet readability
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.5,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (icon != null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 24.0), // Standard tablet icon scale
+          const SizedBox(
+            width: 12,
+          ), // Adjusted spacing for the larger font/icon
+          Flexible(child: textWidget),
+        ],
+      );
+    }
+
+    return textWidget;
   }
 }
